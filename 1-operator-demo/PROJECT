@@ -7,4 +7,14 @@ layout:
 - go.kubebuilder.io/v4
 projectName: 1-operator-demo
 repo: operator/demo
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: my.domain
+  group: demo
+  kind: App
+  path: operator/demo/api/v1
+  version: v1
 version: "3"
