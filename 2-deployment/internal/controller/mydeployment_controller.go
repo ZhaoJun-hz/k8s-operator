@@ -67,14 +67,20 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if errors.IsNotFound(err) {
 			// 2.1 不存在对象
 			// 2.1.1 创建 deployment
-			r.createDeployment(myDeploymentCopy)
+			err := r.createDeployment(ctx, myDeploymentCopy)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		} else {
 			return ctrl.Result{}, err
 		}
 	} else {
 		// 2.2 存在对象
 		// 2.2.1 更新 deployment
-		r.updateDeployment(myDeploymentCopy)
+		err := r.updateDeployment(ctx, myDeploymentCopy)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// ============ 处理 service ===============
@@ -87,11 +93,17 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// 3.1.1 mode 为 ingress
 			if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeIngress {
 				// 3.1.1.1 创建普通 service
-				r.createService(myDeploymentCopy)
+				err := r.createService(ctx, myDeploymentCopy)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
 			} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 				// 3.1.2 mode 为 nodePort
 				// 3.1.2.1 创建 nodePort 模式的 service
-				r.createNodePortService(myDeploymentCopy)
+				err := r.createNodePortService(ctx, myDeploymentCopy)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
 			} else {
 				return ctrl.Result{}, myApiV1.ErrorNotSupportedMode
 			}
@@ -103,11 +115,17 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// 3.2.1 mode 为 ingress
 		if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeIngress {
 			// 3.2.1.1 更新普通 service
-			r.updateService(myDeploymentCopy)
+			err := r.updateService(ctx, myDeploymentCopy)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 			// 3.2.2 mode 为 nodePort
 			// 3.2.2.1 更新 nodePort 模式的 service
-			r.updateNodePortService(myDeploymentCopy)
+			err := r.updateNodePortService(ctx, myDeploymentCopy)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		} else {
 			return ctrl.Result{}, myApiV1.ErrorNotSupportedMode
 		}
@@ -124,7 +142,10 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			// 4.1.1 mode 为 ingress
 			if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeIngress {
 				// 4.1.1.1 创建 ingress
-				r.createIngress(myDeploymentCopy)
+				err := r.createIngress(ctx, myDeploymentCopy)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
 			} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 				// 4.1.2 mode 为 nodePort
 				// 4.1.2.1 退出
@@ -138,12 +159,17 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeIngress {
 			// 4.2.1 mode 为 ingress
 			// 4.2.1.1 更新 ingress
-			r.updateIngress(myDeploymentCopy)
+			err := r.updateIngress(ctx, myDeploymentCopy)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 			// 4.2.2 mode 为 nodePort
 			// 4.2.2.1 删除 ingress
-			r.deleteIngress(myDeploymentCopy)
-
+			err := r.deleteIngress(ctx, myDeploymentCopy)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
 
@@ -159,38 +185,74 @@ func (r *MyDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *MyDeploymentReconciler) createDeployment(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) createDeployment(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	deployment, err := NewDeployment(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Create(ctx, deployment)
 }
 
-func (r *MyDeploymentReconciler) updateDeployment(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) updateDeployment(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	deployment, err := NewDeployment(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Update(ctx, deployment)
 }
 
-func (r *MyDeploymentReconciler) createService(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) createService(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	service, err := NewService(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Create(ctx, service)
 }
 
-func (r *MyDeploymentReconciler) createNodePortService(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) createNodePortService(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	service, err := NewNodePortService(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Create(ctx, service)
 }
 
-func (r *MyDeploymentReconciler) updateService(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) updateService(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	service, err := NewService(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Update(ctx, service)
 }
 
-func (r *MyDeploymentReconciler) updateNodePortService(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) updateNodePortService(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	service, err := NewNodePortService(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Update(ctx, service)
 }
 
-func (r *MyDeploymentReconciler) createIngress(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) createIngress(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	ingress, err := NewIngress(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Create(ctx, ingress)
 }
 
-func (r *MyDeploymentReconciler) updateIngress(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) updateIngress(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	ingress, err := NewIngress(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Update(ctx, ingress)
 }
 
-func (r *MyDeploymentReconciler) deleteIngress(myDeployment *myApiV1.MyDeployment) {
-
+func (r *MyDeploymentReconciler) deleteIngress(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	ingress, err := NewIngress(myDeployment)
+	if err != nil {
+		return err
+	}
+	return r.Client.Delete(ctx, ingress)
 }

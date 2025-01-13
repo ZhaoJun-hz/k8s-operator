@@ -12,7 +12,7 @@ import (
 )
 
 func parseTemplate(myDeployment *myApiV1.MyDeployment, templateName string) ([]byte, error) {
-	tmpl, err := template.ParseFiles(fmt.Sprintf("templates/%s", templateName))
+	tmpl, err := template.ParseFiles(fmt.Sprintf("internal/controller/templates/%s", templateName))
 	if err != nil {
 		return nil, err
 	}
