@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mydeployment-test
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: www.shudong-test.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mydeployment-test
+                port:
+                  number: 80
+
+

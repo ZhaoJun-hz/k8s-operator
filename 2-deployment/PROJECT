@@ -13,7 +13,7 @@ resources:
     namespaced: true
   controller: true
   domain: shudong.com
-  group: v1
+  group: apps
   kind: MyDeployment
   path: deployment/api/v1
   version: v1

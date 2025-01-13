@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: mydeployments.v1.shudong.com
+  name: mydeployments.apps.shudong.com
 spec:
-  group: v1.shudong.com
+  group: apps.shudong.com
   names:
     kind: MyDeployment
     listKind: MyDeploymentList

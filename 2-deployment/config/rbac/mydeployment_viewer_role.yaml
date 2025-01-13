@@ -8,7 +8,7 @@ metadata:
   name: mydeployment-viewer-role
 rules:
 - apiGroups:
-  - v1.shudong.com
+  - apps.shudong.com
   resources:
   - mydeployments
   verbs:
@@ -16,7 +16,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - v1.shudong.com
+  - apps.shudong.com
   resources:
   - mydeployments/status
   verbs:

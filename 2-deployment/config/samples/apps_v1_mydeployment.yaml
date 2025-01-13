@@ -1,4 +1,4 @@
-apiVersion: v1.shudong.com/v1
+apiVersion: apps.shudong.com/v1
 kind: MyDeployment
 metadata:
   labels:
