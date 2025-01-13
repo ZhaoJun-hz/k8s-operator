@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,17 +26,74 @@ import (
 
 // MyDeploymentSpec defines the desired state of MyDeployment.
 type MyDeploymentSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Image 存储镜像地址
+	Image string `json:"image"`
+	// Port 存储服务提供的端口
+	Port int32 `json:"port"`
+	// Replicas 存储要部署多少个副本
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+	// StartCmd 存储启动命令
+	// +optional
+	StartCmd string `json:"startCmd,omitempty"`
+	// Args 存储启动命令参数
+	// +optional
+	Args []corev1.EnvVar `json:"args,omitempty"`
+	// Environments 存储环境变量，直接使用 pod 中的定义方式
+	// +optional
+	Environments []string `json:"environments,omitempty"`
+	// Expose service 要暴露的端口
+	Expose *Expose `json:"expose"`
+}
 
-	// Foo is an example field of MyDeployment. Edit mydeployment_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+// Expose defines the desired state of Expose
+type Expose struct {
+	// Mode 模式 nodePort or ingress
+	Mode string `json:"mode"`
+	// IngressDomain 域名，在 Mode 为 ingress 的时候，此项为必填
+	// +optional
+	IngressDomain string `json:"ingressDomain,omitempty"`
+	// NodePort nodePort端口，在 Mode 为 nodePort 的时候，此项为必填
+	// +optional
+	NodePort int32 `json:"nodePort,omitempty"`
+	// ServicePort service 的端口，一般是随机生成，这里为了防止冲突，使用和提供服务相同的端口
+	// +optional
+	ServicePort int32 `json:"servicePort,omitempty"`
 }
 
 // MyDeploymentStatus defines the observed state of MyDeployment.
 type MyDeploymentStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Phase 处于什么阶段
+	// +optional
+	Phase string `json:"phase,omitempty"`
+	// Message 这个阶段的信息
+	// +optional
+	Message string `json:"message,omitempty"`
+	// Reason 处于这个阶段的原因
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// Conditions 这个字段的子资源状态
+	// +optional
+	Conditions []Condition `json:"conditions,omitempty"`
+}
+
+// Condition defines the observed state of Condition.
+type Condition struct {
+	// Type 子资源类型
+	// +optional
+	Type string `json:"type,omitempty"`
+	// Message 这个子资源状态的信息
+	// +optional
+	Message string `json:"message,omitempty"`
+	// Status 这个子资源的状态名称
+	// +optional
+	Status string `json:"status,omitempty"`
+	// Reason 处于这个状态的原因
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// LastTransitionTime 最后创建 / 更新的时间
+	// +optional
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 }
 
 // +kubebuilder:object:root=true
