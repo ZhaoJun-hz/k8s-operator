@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"net/http"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -41,18 +42,24 @@ import (
 )
 
 var (
+	// 一个对象，用来管理 gvk 和 go struct（CRD） 映射，以及一些互相转换的方法
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
 
 func init() {
+	// k8s 内置的 GCK 和 go struct 的映射，也就是这个 scheme 需要的方法和映射，注入到 scheme 变量中
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	// 本 operator 中的 GCK 和 go struct 的映射，也就是这个 scheme 需要的方法和映射，注入到 scheme 变量中
 	utilruntime.Must(demov1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
+	request := http.Request{}
+	request.PostFormValue("111")
+	request.FormValue("111")
+	// 处理命令行参数
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -74,8 +81,9 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
-
+	// 处理日志的参数
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	// 处理命令行参数 完成
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -118,6 +126,7 @@ func main() {
 		// this setup is not recommended for production.
 	}
 
+	// 创建 manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
@@ -142,6 +151,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 注册 controller
 	if err = (&controller.AppReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -150,16 +160,18 @@ func main() {
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
-
+	// 探活
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
+	// 就绪
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
 
+	// 启动程序
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

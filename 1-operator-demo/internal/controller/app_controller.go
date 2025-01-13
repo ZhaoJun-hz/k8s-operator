@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,6 +29,7 @@ import (
 )
 
 // AppReconciler reconciles a App object
+// 是提供调和函数(将现阶段的状态和定义的状态进行统一，趋近的调和函数)，对象中的数据，可以是在上层统一管理
 type AppReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -46,15 +48,36 @@ type AppReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/reconcile
+// 核心功能函数，定义operator的行为
 func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
+	logger.Info("Starting reconcile")
 
-	// TODO(user): your logic here
+	app := new(demov1.App)
+	if err := r.Client.Get(ctx, req.NamespacedName, app); err != nil {
+		logger.Error(err, "Get resource `")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
+	action := app.Spec.Action
+	object := app.Spec.Object
+
+	result := fmt.Sprintf("%s,%s", action, object)
+	logger.Info("result", result)
+	appCopy := app.DeepCopy()
+	appCopy.Status.Result = result
+
+	if err := r.Client.Status().Update(ctx, appCopy); err != nil {
+		logger.Error(err, "Update resource ")
+		return ctrl.Result{}, err
+	}
+
+	logger.Info("End reconcile")
 	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
+// 将 controller 注册到 manager 中
 func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&demov1.App{}).

@@ -29,30 +29,32 @@ type AppSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of App. Edit app_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Action string `json:"action,omitempty"`
+	Object string `json:"object,omitempty"`
 }
 
 // AppStatus defines the observed state of App.
 type AppStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Result string `json:"result,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
 // App is the Schema for the apps API.
+// 定义 CRD 对象
 type App struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`            // 元信息
+	metav1.ObjectMeta `json:"metadata,omitempty"` // 元信息
 
-	Spec   AppSpec   `json:"spec,omitempty"`
-	Status AppStatus `json:"status,omitempty"`
+	Spec   AppSpec   `json:"spec,omitempty"`   // CRD 的核心内容，CRD的描述定义
+	Status AppStatus `json:"status,omitempty"` // CRD 现阶段状态的内容
 }
 
 // +kubebuilder:object:root=true
 
 // AppList contains a list of App.
+// 定义 CRD 列表
 type AppList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
