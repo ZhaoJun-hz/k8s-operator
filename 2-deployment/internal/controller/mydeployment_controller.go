@@ -19,17 +19,22 @@ package controller
 import (
 	"context"
 	myApiV1 "deployment/api/v1"
+	"fmt"
 	appsV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	networkingV1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"time"
 )
+
+var WaitRequest = 10 * time.Second
 
 // MyDeploymentReconciler reconciles a MyDeployment object
 type MyDeploymentReconciler struct {
@@ -51,6 +56,14 @@ type MyDeploymentReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/reconcile
 func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// 状态更新策略
+	// 创建的时候
+	//		更新为创建
+	// 更新的时候
+	//		根据获取的状态 来判断是否更新 status
+	// 删除的时候
+	//		只有在 操作 Ingress 的时候，并且 mode 为 nodePort 的时候
+
 	logger := log.FromContext(ctx, "MyDeployment", req.NamespacedName)
 	logger.Info("Starting MyDeployment Reconcile")
 	// 1. 获取资源对象
@@ -69,11 +82,23 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if errors.IsNotFound(err) {
 			// 2.1 不存在对象
 			// 2.1.1 创建 deployment
-			err := r.createDeployment(ctx, myDeploymentCopy)
-			if err != nil {
-				return ctrl.Result{}, err
+			errCreate := r.createDeployment(ctx, myDeploymentCopy)
+			if errCreate != nil {
+				return ctrl.Result{}, errCreate
+			}
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+				fmt.Sprintf(myApiV1.ConditionMessageDeploymentNotOKFmt, req.Name),
+				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonDeploymentNotReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
 			}
 		} else {
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+				fmt.Sprintf("Deployment %s, err: %s", req.Name, err.Error()),
+				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonDeploymentNotReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
+			}
 			return ctrl.Result{}, err
 		}
 	} else {
@@ -83,6 +108,22 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		if *deployment.Spec.Replicas == deployment.Status.ReadyReplicas {
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+				fmt.Sprintf(myApiV1.ConditionMessageDeploymentOKFmt, req.Name),
+				myApiV1.ConditionStatusTrue, myApiV1.ConditionReasonDeploymentReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
+			}
+		} else {
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+				fmt.Sprintf(myApiV1.ConditionMessageDeploymentNotOKFmt, req.Name),
+				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonDeploymentNotReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
+			}
+		}
+
 	}
 
 	// ============ 处理 service ===============
@@ -109,7 +150,19 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			} else {
 				return ctrl.Result{}, myApiV1.ErrorNotSupportedMode
 			}
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeService,
+				fmt.Sprintf(myApiV1.ConditionMessageServiceNotOKFmt, req.Name),
+				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonServiceNotReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
+			}
 		} else {
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeService,
+				fmt.Sprintf("Service %s, err: %s", req.Name, err.Error()),
+				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonServiceNotReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
+			}
 			return ctrl.Result{}, err
 		}
 	} else {
@@ -131,7 +184,12 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		} else {
 			return ctrl.Result{}, myApiV1.ErrorNotSupportedMode
 		}
-
+		_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeService,
+			fmt.Sprintf(myApiV1.ConditionMessageServiceOKFmt, req.Name),
+			myApiV1.ConditionStatusTrue, myApiV1.ConditionReasonServiceReady)
+		if errStatus != nil {
+			return ctrl.Result{}, errStatus
+		}
 	}
 
 	// ============ 处理 ingress ===============
@@ -148,12 +206,24 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				if err != nil {
 					return ctrl.Result{}, err
 				}
+				_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeIngress,
+					fmt.Sprintf(myApiV1.ConditionMessageIngressNotOKFmt, req.Name),
+					myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonIngressNotReady)
+				if errStatus != nil {
+					return ctrl.Result{}, errStatus
+				}
 			} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 				// 4.1.2 mode 为 nodePort
 				// 4.1.2.1 退出
 				return ctrl.Result{}, nil
 			}
 		} else {
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeIngress,
+				fmt.Sprintf("Ingress %s, err: %s", req.Name, err.Error()),
+				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonIngressNotReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
+			}
 			return ctrl.Result{}, err
 		}
 	} else {
@@ -165,6 +235,12 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeIngress,
+				fmt.Sprintf(myApiV1.ConditionMessageIngressOKFmt, req.Name),
+				myApiV1.ConditionStatusTrue, myApiV1.ConditionReasonIngressReady)
+			if errStatus != nil {
+				return ctrl.Result{}, errStatus
+			}
 		} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 			// 4.2.2 mode 为 nodePort
 			// 4.2.2.1 删除 ingress
@@ -172,9 +248,19 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.deleteStatus(myDeploymentCopy, myApiV1.ConditionTypeIngress)
 		}
 	}
 
+	// 最后检查状态是否最终完成
+	success, errStatus := r.updateStatus(ctx, myDeploymentCopy, "", "", "", "")
+	if errStatus != nil {
+		return ctrl.Result{}, errStatus
+	}
+	if !success {
+		logger.Info("End MyDeployment Reconcile")
+		return ctrl.Result{RequeueAfter: WaitRequest}, nil
+	}
 	logger.Info("End MyDeployment Reconcile")
 	return ctrl.Result{}, nil
 }
@@ -341,4 +427,114 @@ func (r *MyDeploymentReconciler) deleteIngress(ctx context.Context, myDeployment
 		return err
 	}
 	return r.Client.Delete(ctx, ingress)
+}
+
+// 处理 status
+// return:
+//
+//	bool: 资源是否完成，是否需要等待，如果为 true，表示资源已经完成，不需要再次Reconcile
+//		                         如果为false，表示资源还未完成，需要重新入队
+//	error：执行 update 的状态
+func (r *MyDeploymentReconciler) updateStatus(ctx context.Context, myDeployment *myApiV1.MyDeployment, conditionType, message, status, reason string) (bool, error) {
+	if conditionType != "" {
+		// 1. 获取 MyDeployment 的 status
+		// 2. 获取 Conditions 字段
+		// 3. 根据当前的需求，获取指定的 Condition
+		var condition *myApiV1.Condition
+		for i := range myDeployment.Status.Conditions {
+			// 4. 是否获取到
+			if myDeployment.Status.Conditions[i].Type == conditionType {
+				// 4.1 获取到了
+				condition = &myDeployment.Status.Conditions[i]
+			}
+		}
+		// 4.1.1 获取当前线上的 Condition 状态，与存储的 Condition 进行比较，如果相同，跳过，不同，则进行替换
+		if condition != nil {
+			if condition.Status != status || condition.Reason != reason || condition.Message != message {
+				condition.Status = status
+				condition.Reason = reason
+				condition.Message = message
+			}
+		} else {
+			// 4.2 没获取到，创建这个 Condition，更新到 Conditions 中
+			tempCondition := createCondition(conditionType, message, status, reason)
+			// 追加
+			myDeployment.Status.Conditions = append(myDeployment.Status.Conditions, tempCondition)
+		}
+	}
+	// 5. 继续处理其他的 Condition
+
+	totalPhase, totalMessage, totalReason, success := isSuccess(myDeployment.Status.Conditions)
+	// 6.1 遍历所有的 Conditions 状态，如果有任意一个 Condition 状态不是完成的状态，则将这个状态更新到总的 status 中，等待一段时间再次入队
+	if !success {
+		myDeployment.Status.Phase = totalPhase
+		myDeployment.Status.Reason = totalReason
+		myDeployment.Status.Message = totalMessage
+	} else {
+		// 6.2 如果所有 Conditions 的状态都为成功，则更新总的 status 为成功
+		myDeployment.Status.Message = myApiV1.StatusMessageSuccess
+		myDeployment.Status.Reason = myApiV1.StatusReasonSuccess
+		myDeployment.Status.Phase = myApiV1.StatusPhaseComplete
+	}
+	// 7. 执行更新
+	return success, r.Client.Status().Update(ctx, myDeployment)
+}
+
+func isSuccess(conditions []myApiV1.Condition) (phase string, message string, reason string, success bool) {
+	if len(conditions) == 0 {
+		return "", "", "", false
+	}
+	for i := range conditions {
+		if conditions[i].Status == myApiV1.ConditionStatusFalse {
+			return conditions[i].Type, conditions[i].Message, conditions[i].Reason, false
+		}
+	}
+	return "", "", "", true
+}
+
+func createCondition(conditionType, message, status, reason string) myApiV1.Condition {
+	return myApiV1.Condition{
+		Type:               conditionType,
+		Message:            message,
+		Status:             status,
+		Reason:             reason,
+		LastTransitionTime: metav1.NewTime(time.Now()),
+	}
+}
+
+// 需要是幂等的，可以多次执行，不管是否存在，如果存在就删除，不存在就什么也不做
+// 只是删除对应的 Condition，不做更多的操作
+func (r *MyDeploymentReconciler) deleteStatus(myDeployment *myApiV1.MyDeployment, conditionType string) {
+	// 1. 遍历 Conditions
+	for i := range myDeployment.Status.Conditions {
+		// 2. 找到要删除的对象
+		if myDeployment.Status.Conditions[i].Type == conditionType {
+			// 3. 执行删除
+			myDeployment.Status.Conditions = deleteCondition(myDeployment.Status.Conditions, i)
+		}
+	}
+}
+
+func deleteCondition(conditions []myApiV1.Condition, i int) []myApiV1.Condition {
+	// 前提：切片中的元素顺序不敏感
+
+	// 1. 要删除的元素的索引值不能大于切片长度
+	if i >= len(conditions) {
+		return conditions
+	}
+	// 2. 如果切片长度为1，且索引值为0，直接清空
+	if len(conditions) == 1 && i == 0 {
+		return conditions[:0]
+	}
+
+	// 3. 如果长度 -1 等于索引值，删除最后一个元素
+	if len(conditions)-1 == i {
+		return conditions[:len(conditions)-1]
+
+	}
+
+	// 4. 交换索引位置的元素和最后一位，删除最后一个元素
+	conditions[i], conditions[len(conditions)-1] = conditions[len(conditions)-1], conditions[i]
+	conditions = conditions[:len(conditions)-1]
+	return conditions
 }
