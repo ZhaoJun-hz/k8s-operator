@@ -24,8 +24,10 @@ import (
 	networkingV1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -77,7 +79,7 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	} else {
 		// 2.2 存在对象
 		// 2.2.1 更新 deployment
-		err := r.updateDeployment(ctx, myDeploymentCopy)
+		err := r.updateDeployment(ctx, myDeploymentCopy, deployment)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -115,14 +117,14 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// 3.2.1 mode 为 ingress
 		if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeIngress {
 			// 3.2.1.1 更新普通 service
-			err := r.updateService(ctx, myDeploymentCopy)
+			err := r.updateService(ctx, myDeploymentCopy, service)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
 		} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 			// 3.2.2 mode 为 nodePort
 			// 3.2.2.1 更新 nodePort 模式的 service
-			err := r.updateNodePortService(ctx, myDeploymentCopy)
+			err := r.updateNodePortService(ctx, myDeploymentCopy, service)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -159,7 +161,7 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeIngress {
 			// 4.2.1 mode 为 ingress
 			// 4.2.1.1 更新 ingress
-			err := r.updateIngress(ctx, myDeploymentCopy)
+			err := r.updateIngress(ctx, myDeploymentCopy, ingress)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -181,6 +183,12 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *MyDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&myApiV1.MyDeployment{}).
+		// 监控 Deployment 类型，变更就触发 Reconcile 方法的执行
+		Owns(&appsV1.Deployment{}).
+		// 监控 Service 类型，变更就触发 Reconcile 方法的执行
+		Owns(&coreV1.Service{}).
+		// 监控 Ingress 类型，变更就触发 Reconcile 方法的执行
+		Owns(&networkingV1.Ingress{}).
 		Named("mydeployment").
 		Complete(r)
 }
@@ -190,19 +198,44 @@ func (r *MyDeploymentReconciler) createDeployment(ctx context.Context, myDeploym
 	if err != nil {
 		return err
 	}
+	// 设置 Deployment 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, deployment, r.Scheme)
+	if err != nil {
+		return err
+	}
 	return r.Client.Create(ctx, deployment)
 }
 
-func (r *MyDeploymentReconciler) updateDeployment(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+func (r *MyDeploymentReconciler) updateDeployment(ctx context.Context, myDeployment *myApiV1.MyDeployment, prev *appsV1.Deployment) error {
 	deployment, err := NewDeployment(myDeployment)
 	if err != nil {
 		return err
 	}
+	// 设置 Deployment 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, deployment, r.Scheme)
+	if err != nil {
+		return err
+	}
+	// 预更新，得到更新后的数据
+	err = r.Update(ctx, deployment, client.DryRunAll)
+	if err != nil {
+		return err
+	}
+	// 和之前的数据进行比较，如果相同，说明更新不需要
+	if reflect.DeepEqual(deployment.Spec, prev.Spec) {
+		return nil
+	}
+
 	return r.Client.Update(ctx, deployment)
 }
 
 func (r *MyDeploymentReconciler) createService(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
 	service, err := NewService(myDeployment)
+	if err != nil {
+		return err
+	}
+	// 设置 Service 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, service, r.Scheme)
 	if err != nil {
 		return err
 	}
@@ -214,21 +247,55 @@ func (r *MyDeploymentReconciler) createNodePortService(ctx context.Context, myDe
 	if err != nil {
 		return err
 	}
+	// 设置 Service 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, service, r.Scheme)
+	if err != nil {
+		return err
+	}
 	return r.Client.Create(ctx, service)
 }
 
-func (r *MyDeploymentReconciler) updateService(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+func (r *MyDeploymentReconciler) updateService(ctx context.Context, myDeployment *myApiV1.MyDeployment, prev *coreV1.Service) error {
 	service, err := NewService(myDeployment)
 	if err != nil {
 		return err
 	}
+	// 设置 Service 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, service, r.Scheme)
+	if err != nil {
+		return err
+	}
+
+	// 预更新，得到更新后的数据
+	err = r.Update(ctx, service, client.DryRunAll)
+	if err != nil {
+		return err
+	}
+	// 和之前的数据进行比较，如果相同，说明更新不需要
+	if reflect.DeepEqual(service.Spec, prev.Spec) {
+		return nil
+	}
 	return r.Client.Update(ctx, service)
 }
 
-func (r *MyDeploymentReconciler) updateNodePortService(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+func (r *MyDeploymentReconciler) updateNodePortService(ctx context.Context, myDeployment *myApiV1.MyDeployment, prev *coreV1.Service) error {
 	service, err := NewNodePortService(myDeployment)
 	if err != nil {
 		return err
+	}
+	// 设置 Service 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, service, r.Scheme)
+	if err != nil {
+		return err
+	}
+	// 预更新，得到更新后的数据
+	err = r.Update(ctx, service, client.DryRunAll)
+	if err != nil {
+		return err
+	}
+	// 和之前的数据进行比较，如果相同，说明更新不需要
+	if reflect.DeepEqual(service.Spec, prev.Spec) {
+		return nil
 	}
 	return r.Client.Update(ctx, service)
 }
@@ -238,13 +305,32 @@ func (r *MyDeploymentReconciler) createIngress(ctx context.Context, myDeployment
 	if err != nil {
 		return err
 	}
+	// 设置 Ingress 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, ingress, r.Scheme)
+	if err != nil {
+		return err
+	}
 	return r.Client.Create(ctx, ingress)
 }
 
-func (r *MyDeploymentReconciler) updateIngress(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+func (r *MyDeploymentReconciler) updateIngress(ctx context.Context, myDeployment *myApiV1.MyDeployment, prev *networkingV1.Ingress) error {
 	ingress, err := NewIngress(myDeployment)
 	if err != nil {
 		return err
+	}
+	// 设置 Ingress 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, ingress, r.Scheme)
+	if err != nil {
+		return err
+	}
+	// 预更新，得到更新后的数据
+	err = r.Update(ctx, ingress, client.DryRunAll)
+	if err != nil {
+		return err
+	}
+	// 和之前的数据进行比较，如果相同，说明更新不需要
+	if reflect.DeepEqual(ingress.Spec, prev.Spec) {
+		return nil
 	}
 	return r.Client.Update(ctx, ingress)
 }
