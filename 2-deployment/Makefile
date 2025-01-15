@@ -80,6 +80,11 @@ test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated 
 	}
 	go test ./test/e2e/ -v -ginkgo.v
 
+.PHONY: e2e-test
+e2e-test:
+	cd test/e2e && go test -tags=e2e --config yaml/config.yaml -startup-timeout 36000 ./...
+
+
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
 	$(GOLANGCI_LINT) run
@@ -194,6 +199,15 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+
+.PHONY: wait-dep
+wait-dep:
+	kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller -w --timeout=40m
+
+.PHONY: wait-deploy
+wait-deploy:
+	kubectl -n deployment-system rollout status deploy/deployment-controller-manager -w --timeout=40m
+
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary

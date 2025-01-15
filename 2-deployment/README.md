@@ -1,3 +1,13 @@
+## 测试
+```shell
+kubectl get MyDeployment
+
+kubectl get pods -n deployment-system
+
+kubectl logs deployment-controller-manager-5b79fff89f-rgfqg -n deployment-system
+
+```
+
 # 2-deployment
 // TODO(user): Add simple overview of use/purpose
 

@@ -1,0 +1,94 @@
+cluster:
+  kind:
+    name: e2e
+    retain: true
+    config: |
+      kind: Cluster
+      apiVersion: kind.x-k8s.io/v1alpha4
+      name: e2e
+      nodes:
+        - role: control-plane
+          kubeadmConfigPatches:
+            - |
+              kind: InitConfiguration
+              nodeRegistration:
+                kubeletExtraArgs:
+                  node-labels: "ingress-ready=true"  
+          extraPortMappings:
+            - containerPort: 80
+              hostPort: 80
+              protocol: TCP
+            - containerPort: 443
+              hostPort: 443
+              protocol: TCP
+            - containerPort: 30001
+              hostPort: 30001
+              protocol: TCP
+      
+      containerdConfigPatches:
+        - |-
+          [plugins."io.containerd.grpc.v1.cri".registry.mirrors."my.harbor.cn"]
+            endpoint = ["https://my.harbor.cn:443"]
+          [plugins."io.containerd.grpc.v1.cri".registry.configs."my.harbor.cn".tls]
+              insecure_skip_verify = true
+          [plugins."io.containerd.grpc.v1.cri".registry.configs."my.harbor.cn".auth]
+              username = "admin"
+              password = "Harbor12345"
+
+install:
+  steps:
+    - name: ingress-controller
+      cmd: kubectl
+      args:
+        - apply
+        - -f
+        - test/e2e/yaml/deploy-ingress-nginx.yaml
+      path: ../..
+      ignoreFail: false
+    - name: wait-dep
+      cmd: make
+      args:
+        - wait-dep
+      path: ../..
+      ignoreFail: false
+    - name: docker-build
+      cmd: make
+      args:
+        - docker-build
+        - IMG=my.harbor.cn/k8sstudy/mydeployment:v0.0.1
+      path: ../..
+      ignoreFail: false
+    - name: docker-push
+      cmd: make
+      args:
+        - docker-push
+        - IMG=my.harbor.cn/k8sstudy/mydeployment:v0.0.1
+      path: ../..
+      ignoreFail: false
+    - name: install-crd
+      cmd: make
+      args:
+        - install
+      path: ../..
+      ignoreFail: false
+    - name: deploy
+      cmd: make
+      args:
+        - deploy
+        - IMG=my.harbor.cn/k8sstudy/mydeployment:v0.0.1
+      path: ../..
+      ignoreFail: false
+    - name: wait-deploy
+      cmd: make
+      args:
+        - wait-deploy
+      path: ../..
+      ignoreFail: false
+    - name: check
+      cmd: kubectl
+      args:
+        - get
+        - pod
+        - -A
+      path: ../..
+      ignoreFail: false

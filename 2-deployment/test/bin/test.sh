@@ -1,0 +1,3 @@
+#!/bin/bash
+cd /Users/zj/workspage/golang/src/k8s-operator/2-deployment/test/e2e
+go test -tags=e2e --config config.yaml -startup-timeout 36000 ./...

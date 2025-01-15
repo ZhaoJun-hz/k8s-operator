@@ -45,6 +45,9 @@ type MyDeploymentReconciler struct {
 // +kubebuilder:rbac:groups=apps.shudong.com,resources=mydeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps.shudong.com,resources=mydeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps.shudong.com,resources=mydeployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
