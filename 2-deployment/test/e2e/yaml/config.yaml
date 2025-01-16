@@ -51,6 +51,20 @@ install:
         - wait-dep
       path: ../..
       ignoreFail: false
+    - name: cert-manager
+      cmd: kubectl
+      args:
+        - apply
+        - -f
+        - test/e2e/yaml/cert-manager.yaml
+      path: ../..
+      ignoreFail: false
+    - name: wait-cert-manager
+      cmd: make
+      args:
+        - wait-cert-manager
+      path: ../..
+      ignoreFail: false
     - name: docker-build
       cmd: make
       args:

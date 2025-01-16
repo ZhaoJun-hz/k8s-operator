@@ -88,3 +88,57 @@ func CreateNodePortMyDeployment(ctx *framework.TestContext, f *framework.Framewo
 		})
 	})
 }
+
+func CreateNodePortMyDeploymentMustFailed(ctx *framework.TestContext, f *framework.Framework) {
+	var (
+		// 1. 准备测试数据
+		crGt32767FilePath    = "create/testdata/create-nodeport-error-gt-32767.yaml"
+		gt32767obj           = &unstructured.Unstructured{Object: make(map[string]interface{})}
+		crLt30000FilePath    = "create/testdata/create-nodeport-error-lt-30000.yaml"
+		lt30000obj           = &unstructured.Unstructured{Object: make(map[string]interface{})}
+		crNoNodePortFilePath = "create/testdata/create-nodeport-error-no-nodeport.yaml"
+		noNodePortobj        = &unstructured.Unstructured{Object: make(map[string]interface{})}
+
+		dynamicClient dynamic.Interface
+		// 3. 准备测试用到的全局变量
+		myGVR = schema.GroupVersionResource{
+			Group:    "apps.shudong.com",
+			Version:  "v1",
+			Resource: "mydeployments",
+		}
+		err error
+	)
+
+	ginkgo.BeforeEach(func() {
+		// 2. 加载测试数据
+		err = f.LoadYamlToUnstructured(crGt32767FilePath, gt32767obj)
+		gomega.Expect(err).Should(gomega.BeNil())
+		err = f.LoadYamlToUnstructured(crLt30000FilePath, lt30000obj)
+		gomega.Expect(err).Should(gomega.BeNil())
+		err = f.LoadYamlToUnstructured(crNoNodePortFilePath, noNodePortobj)
+		gomega.Expect(err).Should(gomega.BeNil())
+		// 4. 初始化测试用到的全局变量
+		dynamicClient = ctx.CreateDynamicClient()
+	})
+
+	ginkgo.Context("create mode nodeport mydeployment, but nodeport gt 32767", func() {
+		ginkgo.It("should be create mode ingress but nodeport gt 32767 failed", func() {
+			_, err = dynamicClient.Resource(myGVR).Namespace("default").Create(context.TODO(), gt32767obj, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.BeNil())
+		})
+	})
+
+	ginkgo.Context("create mode nodeport mydeployment, but nodeport lt 30000", func() {
+		ginkgo.It("should be create mode ingress but nodeport lt 30000 failed", func() {
+			_, err = dynamicClient.Resource(myGVR).Namespace("default").Create(context.TODO(), lt30000obj, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.BeNil())
+		})
+	})
+
+	ginkgo.Context("create mode nodeport mydeployment, but no nodeport", func() {
+		ginkgo.It("should be create mode ingress but no nodeport", func() {
+			_, err = dynamicClient.Resource(myGVR).Namespace("default").Create(context.TODO(), noNodePortobj, metav1.CreateOptions{})
+			gomega.Expect(err).ShouldNot(gomega.BeNil())
+		})
+	})
+}

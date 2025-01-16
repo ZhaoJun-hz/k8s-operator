@@ -8,5 +8,5 @@ spec:
     app: {{ .ObjectMeta.Name }}
   ports:
     - protocol: TCP
-      port: {{ .Spec.Port }}
+      port: {{ .Spec.Expose.ServicePort }}
       targetPort: {{ .Spec.Port }}

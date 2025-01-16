@@ -204,6 +204,12 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 wait-dep:
 	kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller -w --timeout=40m
 
+.PHONY: wait-cert-manager
+wait-cert-manager:
+	kubectl -n cert-manager rollout status deploy/cert-manager-cainjector -w --timeout=40m && \
+	kubectl -n cert-manager rollout status deploy/cert-manager -w --timeout=40m && \
+	kubectl -n cert-manager rollout status deploy/cert-manager-webhook -w --timeout=40m
+
 .PHONY: wait-deploy
 wait-deploy:
 	kubectl -n deployment-system rollout status deploy/deployment-controller-manager -w --timeout=40m

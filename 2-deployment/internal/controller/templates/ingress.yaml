@@ -15,6 +15,6 @@ spec:
               service:
                 name: {{ .ObjectMeta.Name }}
                 port:
-                  number: {{ .Spec.Port }}
+                  number: {{ .Spec.Expose.ServicePort }}
 
 

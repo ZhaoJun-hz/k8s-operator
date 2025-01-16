@@ -19,6 +19,7 @@ package v1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -106,6 +107,29 @@ type MyDeployment struct {
 
 	Spec   MyDeploymentSpec   `json:"spec,omitempty"`
 	Status MyDeploymentStatus `json:"status,omitempty"`
+}
+
+func (myDeployment *MyDeployment) ValidateCreateAndUpdate() error {
+	// 定义错误切片，在后续出现错误的时候，不断的向其中追加，最后合并返回
+	errs := field.ErrorList{}
+	exposePath := field.NewPath("spec", "expose")
+	// 1. 传入的 spec.expose.mode 值是否为 ingress 或 nodeport
+	if myDeployment.Spec.Expose.Mode != ModeIngress && myDeployment.Spec.Expose.Mode != ModeNodePort {
+		errs = append(errs, field.NotSupported(exposePath,
+			myDeployment.Spec.Expose.Mode, []string{ModeIngress, ModeNodePort}))
+	}
+	// 2. 如果 spec.expose.mode 是 ingress，那么 spec.expose.ingressDomain 不能为空
+	if myDeployment.Spec.Expose.Mode == ModeIngress && myDeployment.Spec.Expose.IngressDomain == "" {
+		errs = append(errs, field.Invalid(exposePath, myDeployment.Spec.Expose.Mode,
+			"如果 `spec.expose.mode` 是 `ingress`，那么 `spec.expose.ingressDomain` 不能为空"))
+	}
+	// 3. 如果 spec.expose.mode 是 nodeport，那么 spec.expose.nodePort 取值范围 30000-32767
+	if myDeployment.Spec.Expose.Mode == ModeNodePort &&
+		(myDeployment.Spec.Expose.NodePort < 30000 || myDeployment.Spec.Expose.NodePort > 32767) {
+		errs = append(errs, field.Invalid(exposePath, myDeployment.Spec.Expose.Mode,
+			"如果 `spec.expose.mode` 是 `nodeport`，那么 `spec.expose.nodePort` 取值范围 `30000-32767`"))
+	}
+	return errs.ToAggregate()
 }
 
 // +kubebuilder:object:root=true

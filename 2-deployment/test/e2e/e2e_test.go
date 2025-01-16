@@ -4,9 +4,11 @@
 package e2e
 
 import (
-	"deployment/test/framework"
-	"github.com/onsi/ginkgo/v2"
 	"testing"
+
+	"github.com/onsi/ginkgo/v2"
+
+	"deployment/test/framework"
 )
 
 var fmw = framework.NewFramework()
