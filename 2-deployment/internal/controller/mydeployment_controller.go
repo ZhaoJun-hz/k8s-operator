@@ -26,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +42,25 @@ var WaitRequest = 10 * time.Second
 type MyDeploymentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	// 用来访问 issuer 和 certificate 资源
+	DynamicClient dynamic.Interface
 }
+
+// https 2. 创建动态 GVR
+var (
+	// https 2.1 issuer GVR，供 DynamicClient 调用
+	issuerGVR = schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "issuers",
+	}
+	// https 2.2 certificate GVR，供 DynamicClient 调用
+	certificateGVR = schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "certificates",
+	}
+)
 
 // +kubebuilder:rbac:groups=apps.shudong.com,resources=mydeployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps.shudong.com,resources=mydeployments/status,verbs=get;update;patch
@@ -48,6 +68,9 @@ type MyDeploymentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+// https 3. 创建 issuer certificate GVR 需要的权限
+// +kubebuilder:rbac:groups=cert-manager.io,resources=issuers,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -215,6 +238,17 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				if errStatus != nil {
 					return ctrl.Result{}, errStatus
 				}
+				if myDeploymentCopy.Spec.Expose.Tls {
+					// https 4. 创建 issuers 和 certificate
+					err := r.createIssuer(ctx, myDeploymentCopy)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
+					err = r.createCertificate(ctx, myDeploymentCopy)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
+				}
 			} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 				// 4.1.2 mode 为 nodePort
 				// 4.1.2.1 退出
@@ -243,6 +277,18 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				myApiV1.ConditionStatusTrue, myApiV1.ConditionReasonIngressReady)
 			if errStatus != nil {
 				return ctrl.Result{}, errStatus
+			}
+			// https 5. 创建 issuers 和 certificate
+			if myDeploymentCopy.Spec.Expose.Tls {
+				// https 4. 创建 issuers 和 certificate
+				err := r.createIssuer(ctx, myDeploymentCopy)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+				err = r.createCertificate(ctx, myDeploymentCopy)
+				if err != nil {
+					return ctrl.Result{}, err
+				}
 			}
 		} else if myDeploymentCopy.Spec.Expose.Mode == myApiV1.ModeNodePort {
 			// 4.2.2 mode 为 nodePort
@@ -430,6 +476,50 @@ func (r *MyDeploymentReconciler) deleteIngress(ctx context.Context, myDeployment
 		return err
 	}
 	return r.Client.Delete(ctx, ingress)
+}
+
+func (r *MyDeploymentReconciler) createIssuer(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	// 1. 创建 issuer
+	issuer, err := NewIssuer(myDeployment)
+	if err != nil {
+		return err
+	}
+	// 设置 issuer 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, issuer, r.Scheme)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			return nil
+		}
+		return err
+	}
+	// 在 k8s 中创建 issuer 资源
+	_, err = r.DynamicClient.Resource(issuerGVR).Namespace(myDeployment.Namespace).Create(ctx, issuer, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *MyDeploymentReconciler) createCertificate(ctx context.Context, myDeployment *myApiV1.MyDeployment) error {
+	// 1. 创建 certificate
+	certificate, err := NewCertificate(myDeployment)
+	if err != nil {
+		return err
+	}
+	// 设置 certificate 所属于 md
+	err = controllerutil.SetControllerReference(myDeployment, certificate, r.Scheme)
+	if err != nil {
+		return err
+	}
+	// 在 k8s 中创建 certificate 资源
+	_, err = r.DynamicClient.Resource(certificateGVR).Namespace(myDeployment.Namespace).Create(ctx, certificate, metav1.CreateOptions{})
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // 处理 status

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .ObjectMeta.Name }}
+  namespace: {{ .ObjectMeta.Namespace }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ .Spec.Expose.IngressDomain }}
+      secretName: {{ .ObjectMeta.Name }}
+  rules:
+    - host: {{ .Spec.Expose.IngressDomain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .ObjectMeta.Name }}
+                port:
+                  number: {{ .Spec.Expose.ServicePort }}
+
+

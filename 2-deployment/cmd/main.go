@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"k8s.io/client-go/dynamic"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -146,6 +147,8 @@ func main() {
 	if err = (&controller.MyDeploymentReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		// https 1. 创建动态 client
+		DynamicClient: dynamic.NewForConfigOrDie(ctrl.GetConfigOrDie()),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MyDeployment")
 		os.Exit(1)

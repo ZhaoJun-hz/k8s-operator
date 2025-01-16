@@ -1,0 +1,12 @@
+apiVersion: apps.shudong.com/v1
+kind: MyDeployment
+metadata:
+  name: create-ingress-with-tls
+spec:
+  image: my.harbor.cn/k8sstudy/nginx:stable-alpine3.20
+  port: 80
+  replicas: 2
+  expose:
+    mode: ingress
+    ingressDomain: www.shudong-test.com
+    tls: true

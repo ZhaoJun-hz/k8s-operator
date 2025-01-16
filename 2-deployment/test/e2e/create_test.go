@@ -10,3 +10,4 @@ var _ = fmw.Describe("Create mode nodeport mydeployment ", create.CreateNodePort
 var _ = fmw.Describe("Create mode ingress mydeployment default value", create.CreateIngressMyDeploymentDefaultValue)
 var _ = fmw.Describe("Create mode ingress mydeployment must failed", create.CreateIngressMyDeploymentMustFailed)
 var _ = fmw.Describe("Create mode nodeport mydeployment must failed", create.CreateNodePortMyDeploymentMustFailed)
+var _ = fmw.Describe("Create mode ingress mydeployment with tls", create.CreateIngressMyDeploymentWithTls)

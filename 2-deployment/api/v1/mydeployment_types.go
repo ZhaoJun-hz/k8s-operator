@@ -51,6 +51,9 @@ type MyDeploymentSpec struct {
 type Expose struct {
 	// Mode 模式 nodePort or ingress
 	Mode string `json:"mode"`
+	// Tls 是否开启https
+	// +optional
+	Tls bool `json:"tls,omitempty"`
 	// IngressDomain 域名，在 Mode 为 ingress 的时候，此项为必填
 	// +optional
 	IngressDomain string `json:"ingressDomain,omitempty"`
