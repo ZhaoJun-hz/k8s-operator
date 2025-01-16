@@ -235,6 +235,12 @@ spec:
               message:
                 description: Message 这个阶段的信息
                 type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration 观测一次 Reconcile 产生的变化，如果有变化自加，最终判断是否变更，
+                  如果变更，则请求 apiserver 真正的更新，否则不做任何更新
+                format: int32
+                type: integer
               phase:
                 description: Phase 处于什么阶段
                 type: string

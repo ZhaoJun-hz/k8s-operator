@@ -100,6 +100,18 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	// 防止污染缓存
 	myDeploymentCopy := myDeployment.DeepCopy()
+
+	// 处理最终的返回
+	defer func() {
+		if r.Ready(myDeploymentCopy) {
+			_ = r.Client.Status().Update(ctx, myDeploymentCopy)
+			return
+		}
+		if myDeploymentCopy.Status.ObservedGeneration != myDeployment.Status.ObservedGeneration {
+			_ = r.Client.Status().Update(ctx, myDeploymentCopy)
+		}
+	}()
+
 	// ============ 处理 deployment ===============
 	// 2. 获取 deployment 资源对象
 	deployment := new(appsV1.Deployment)
@@ -112,19 +124,13 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if errCreate != nil {
 				return ctrl.Result{}, errCreate
 			}
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeDeployment,
 				fmt.Sprintf(myApiV1.ConditionMessageDeploymentNotOKFmt, req.Name),
 				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonDeploymentNotReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
 		} else {
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeDeployment,
 				fmt.Sprintf("Deployment %s, err: %s", req.Name, err.Error()),
 				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonDeploymentNotReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
 			return ctrl.Result{}, err
 		}
 	} else {
@@ -135,19 +141,14 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 		if *deployment.Spec.Replicas == deployment.Status.ReadyReplicas {
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeDeployment,
 				fmt.Sprintf(myApiV1.ConditionMessageDeploymentOKFmt, req.Name),
 				myApiV1.ConditionStatusTrue, myApiV1.ConditionReasonDeploymentReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
 		} else {
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeDeployment,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeDeployment,
 				fmt.Sprintf(myApiV1.ConditionMessageDeploymentNotOKFmt, req.Name),
 				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonDeploymentNotReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
+
 		}
 
 	}
@@ -164,19 +165,13 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{}, err
 			}
 
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeService,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeService,
 				fmt.Sprintf(myApiV1.ConditionMessageServiceNotOKFmt, req.Name),
 				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonServiceNotReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
 		} else {
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeService,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeService,
 				fmt.Sprintf("Service %s, err: %s", req.Name, err.Error()),
 				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonServiceNotReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
 			return ctrl.Result{}, err
 		}
 	} else {
@@ -186,12 +181,9 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 
-		_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeService,
+		r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeService,
 			fmt.Sprintf(myApiV1.ConditionMessageServiceOKFmt, req.Name),
 			myApiV1.ConditionStatusTrue, myApiV1.ConditionReasonServiceReady)
-		if errStatus != nil {
-			return ctrl.Result{}, errStatus
-		}
 	}
 
 	// ============ 处理 ingress ===============
@@ -208,12 +200,9 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				if err != nil {
 					return ctrl.Result{}, err
 				}
-				_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeIngress,
+				r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeIngress,
 					fmt.Sprintf(myApiV1.ConditionMessageIngressNotOKFmt, req.Name),
 					myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonIngressNotReady)
-				if errStatus != nil {
-					return ctrl.Result{}, errStatus
-				}
 				if myDeploymentCopy.Spec.Expose.Tls {
 					// https 4. 创建 issuers 和 certificate
 					err := r.createIssuer(ctx, myDeploymentCopy)
@@ -231,12 +220,9 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return ctrl.Result{}, nil
 			}
 		} else {
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeIngress,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeIngress,
 				fmt.Sprintf("Ingress %s, err: %s", req.Name, err.Error()),
 				myApiV1.ConditionStatusFalse, myApiV1.ConditionReasonIngressNotReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
 			return ctrl.Result{}, err
 		}
 	} else {
@@ -248,12 +234,9 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			_, errStatus := r.updateStatus(ctx, myDeploymentCopy, myApiV1.ConditionTypeIngress,
+			r.updateConditions(myDeploymentCopy, myApiV1.ConditionTypeIngress,
 				fmt.Sprintf(myApiV1.ConditionMessageIngressOKFmt, req.Name),
 				myApiV1.ConditionStatusTrue, myApiV1.ConditionReasonIngressReady)
-			if errStatus != nil {
-				return ctrl.Result{}, errStatus
-			}
 			// https 5. 创建 issuers 和 certificate
 			if myDeploymentCopy.Spec.Expose.Tls {
 				// https 4. 创建 issuers 和 certificate
@@ -277,16 +260,10 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// 最后检查状态是否最终完成
-	success, errStatus := r.updateStatus(ctx, myDeploymentCopy, "", "", "", "")
-	if errStatus != nil {
-		return ctrl.Result{}, errStatus
-	}
-	if !success {
-		logger.Info("End MyDeployment Reconcile")
+	logger.Info("End MyDeployment Reconcile")
+	if !r.Ready(myDeploymentCopy) {
 		return ctrl.Result{RequeueAfter: WaitRequest}, nil
 	}
-	logger.Info("End MyDeployment Reconcile")
 	return ctrl.Result{}, nil
 }
 
@@ -445,55 +422,56 @@ func (r *MyDeploymentReconciler) createCertificate(ctx context.Context, myDeploy
 	return nil
 }
 
-// 处理 status
-// return:
-//
-//	bool: 资源是否完成，是否需要等待，如果为 true，表示资源已经完成，不需要再次Reconcile
-//		                         如果为false，表示资源还未完成，需要重新入队
-//	error：执行 update 的状态
-func (r *MyDeploymentReconciler) updateStatus(ctx context.Context, myDeployment *myApiV1.MyDeployment, conditionType, message, status, reason string) (bool, error) {
-	if conditionType != "" {
-		// 1. 获取 MyDeployment 的 status
-		// 2. 获取 Conditions 字段
-		// 3. 根据当前的需求，获取指定的 Condition
-		var condition *myApiV1.Condition
-		for i := range myDeployment.Status.Conditions {
-			// 4. 是否获取到
-			if myDeployment.Status.Conditions[i].Type == conditionType {
-				// 4.1 获取到了
-				condition = &myDeployment.Status.Conditions[i]
-			}
-		}
-		// 4.1.1 获取当前线上的 Condition 状态，与存储的 Condition 进行比较，如果相同，跳过，不同，则进行替换
-		if condition != nil {
-			if condition.Status != status || condition.Reason != reason || condition.Message != message {
-				condition.Status = status
-				condition.Reason = reason
-				condition.Message = message
-			}
-		} else {
-			// 4.2 没获取到，创建这个 Condition，更新到 Conditions 中
-			tempCondition := createCondition(conditionType, message, status, reason)
-			// 追加
-			myDeployment.Status.Conditions = append(myDeployment.Status.Conditions, tempCondition)
+// 更新 Condition ，并变更版本
+func (r *MyDeploymentReconciler) updateConditions(myDeployment *myApiV1.MyDeployment, conditionType, message, status, reason string) {
+	// 1. 获取 MyDeployment 的 status
+	// 2. 获取 Conditions 字段
+	// 3. 根据当前的需求，获取指定的 Condition
+	var condition *myApiV1.Condition
+	for i := range myDeployment.Status.Conditions {
+		// 4. 是否获取到
+		if myDeployment.Status.Conditions[i].Type == conditionType {
+			// 4.1 获取到了
+			condition = &myDeployment.Status.Conditions[i]
 		}
 	}
-	// 5. 继续处理其他的 Condition
+	// 4.1.1 获取当前线上的 Condition 状态，与存储的 Condition 进行比较，如果相同，跳过，不同，则进行替换
+	if condition != nil {
+		if condition.Status != status || condition.Reason != reason || condition.Message != message {
+			condition.Status = status
+			condition.Reason = reason
+			condition.Message = message
 
+		}
+	} else {
+		// 4.2 没获取到，创建这个 Condition，更新到 Conditions 中
+		tempCondition := createCondition(conditionType, message, status, reason)
+		// 追加
+		myDeployment.Status.Conditions = append(myDeployment.Status.Conditions, tempCondition)
+	}
+	myDeployment.Status.ObservedGeneration++
+}
+
+// 判断本次reconcile是否达到预期
+func (r *MyDeploymentReconciler) Ready(myDeployment *myApiV1.MyDeployment) bool {
 	totalPhase, totalMessage, totalReason, success := isSuccess(myDeployment.Status.Conditions)
 	// 6.1 遍历所有的 Conditions 状态，如果有任意一个 Condition 状态不是完成的状态，则将这个状态更新到总的 status 中，等待一段时间再次入队
 	if !success {
-		myDeployment.Status.Phase = totalPhase
-		myDeployment.Status.Reason = totalReason
-		myDeployment.Status.Message = totalMessage
+		if myDeployment.Status.Phase != totalPhase || myDeployment.Status.Reason != totalReason ||
+			myDeployment.Status.Message != totalMessage {
+			myDeployment.Status.Phase = totalPhase
+			myDeployment.Status.Reason = totalReason
+			myDeployment.Status.Message = totalMessage
+		}
 	} else {
 		// 6.2 如果所有 Conditions 的状态都为成功，则更新总的 status 为成功
 		myDeployment.Status.Message = myApiV1.StatusMessageSuccess
 		myDeployment.Status.Reason = myApiV1.StatusReasonSuccess
 		myDeployment.Status.Phase = myApiV1.StatusPhaseComplete
+		myDeployment.Status.ObservedGeneration++
 	}
 	// 7. 执行更新
-	return success, r.Client.Status().Update(ctx, myDeployment)
+	return success
 }
 
 func isSuccess(conditions []myApiV1.Condition) (phase string, message string, reason string, success bool) {
@@ -522,11 +500,13 @@ func createCondition(conditionType, message, status, reason string) myApiV1.Cond
 // 只是删除对应的 Condition，不做更多的操作
 func (r *MyDeploymentReconciler) deleteStatus(myDeployment *myApiV1.MyDeployment, conditionType string) {
 	// 1. 遍历 Conditions
-	for i := range myDeployment.Status.Conditions {
+	var tmp []myApiV1.Condition
+	copy(tmp, myDeployment.Status.Conditions)
+	for i := range tmp {
 		// 2. 找到要删除的对象
-		if myDeployment.Status.Conditions[i].Type == conditionType {
+		if tmp[i].Type == conditionType {
 			// 3. 执行删除
-			myDeployment.Status.Conditions = deleteCondition(myDeployment.Status.Conditions, i)
+			myDeployment.Status.Conditions = deleteCondition(tmp, i)
 		}
 	}
 }

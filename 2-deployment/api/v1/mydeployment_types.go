@@ -79,6 +79,11 @@ type MyDeploymentStatus struct {
 	// Conditions 这个字段的子资源状态
 	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
+
+	// ObservedGeneration 观测一次 Reconcile 产生的变化，如果有变化自加，最终判断是否变更，
+	// 如果变更，则请求 apiserver 真正的更新，否则不做任何更新
+	// +optional
+	ObservedGeneration int32 `json:"observedGeneration,omitempty"`
 }
 
 // Condition defines the observed state of Condition.
