@@ -9,3 +9,4 @@ spec:
   expose:
     mode: ingress
     ingressDomain: www.shudong-test.com
+    servicePort: 80

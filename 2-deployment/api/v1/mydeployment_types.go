@@ -36,13 +36,13 @@ type MyDeploymentSpec struct {
 	Replicas int32 `json:"replicas,omitempty"`
 	// StartCmd 存储启动命令
 	// +optional
-	StartCmd string `json:"startCmd,omitempty"`
+	StartCmd []string `json:"startCmd,omitempty"`
 	// Args 存储启动命令参数
 	// +optional
-	Args []corev1.EnvVar `json:"args,omitempty"`
+	Args []string `json:"args,omitempty"`
 	// Environments 存储环境变量，直接使用 pod 中的定义方式
 	// +optional
-	Environments []string `json:"environments,omitempty"`
+	Environments []corev1.EnvVar `json:"environments,omitempty"`
 	// Expose service 要暴露的端口
 	Expose *Expose `json:"expose"`
 }

@@ -89,12 +89,8 @@ func TestNewDeployment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewDeployment(tt.args.myDeployment)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewDeployment() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
+			got := NewDeployment(tt.args.myDeployment)
+			if !reflect.DeepEqual(got, *tt.want) {
 				t.Errorf("NewDeployment() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -106,28 +102,22 @@ func TestNewIngress(t *testing.T) {
 		myDeployment *myApiV1.MyDeployment
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *networkingV1.Ingress
-		wantErr bool
+		name string
+		args args
+		want *networkingV1.Ingress
 	}{
 		{
 			name: "测试使用 ingress mode，生成 Ingress 资源",
 			args: args{
 				myDeployment: newMyDeployment("ingress-cr.yaml"),
 			},
-			want:    newIngress("ingress-ingress-expect.yaml"),
-			wantErr: false,
+			want: newIngress("ingress-ingress-expect.yaml"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewIngress(tt.args.myDeployment)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewIngress() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
+			got := NewIngress(tt.args.myDeployment)
+			if !reflect.DeepEqual(got, *tt.want) {
 				t.Errorf("NewIngress() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -139,28 +129,22 @@ func TestNewNodePortService(t *testing.T) {
 		myDeployment *myApiV1.MyDeployment
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *coreV1.Service
-		wantErr bool
+		name string
+		args args
+		want *coreV1.Service
 	}{
 		{
 			name: "测试使用 nodePort mode，生成 NodePort Service 资源",
 			args: args{
 				myDeployment: newMyDeployment("nodeport-cr.yaml"),
 			},
-			want:    newService("nodeport-service-expect.yaml"),
-			wantErr: false,
+			want: newService("nodeport-service-expect.yaml"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewNodePortService(tt.args.myDeployment)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewNodePortService() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
+			got := NewService(tt.args.myDeployment)
+			if !reflect.DeepEqual(got, *tt.want) {
 				t.Errorf("NewNodePortService() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -172,28 +156,22 @@ func TestNewService(t *testing.T) {
 		myDeployment *myApiV1.MyDeployment
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *coreV1.Service
-		wantErr bool
+		name string
+		args args
+		want *coreV1.Service
 	}{
 		{
 			name: "测试使用 ingress mode，生成 Service 资源",
 			args: args{
 				myDeployment: newMyDeployment("ingress-cr.yaml"),
 			},
-			want:    newService("ingress-service-expect.yaml"),
-			wantErr: false,
+			want: newService("ingress-service-expect.yaml"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewService(tt.args.myDeployment)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewService() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
+			got := NewService(tt.args.myDeployment)
+			if !reflect.DeepEqual(got, *tt.want) {
 				t.Errorf("NewService() got = %v, want %v", got, tt.want)
 			}
 		})

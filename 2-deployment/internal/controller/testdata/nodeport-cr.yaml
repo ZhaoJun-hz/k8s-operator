@@ -8,4 +8,5 @@ spec:
   replicas: 2
   expose:
     mode: nodePort
+    servicePort: 80
     nodePort: 8080

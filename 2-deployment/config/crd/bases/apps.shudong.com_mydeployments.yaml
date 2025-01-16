@@ -42,6 +42,11 @@ spec:
               args:
                 description: Args 存储启动命令参数
                 items:
+                  type: string
+                type: array
+              environments:
+                description: Environments 存储环境变量，直接使用 pod 中的定义方式
+                items:
                   description: EnvVar represents an environment variable present in
                     a Container.
                   properties:
@@ -157,11 +162,6 @@ spec:
                   - name
                   type: object
                 type: array
-              environments:
-                description: Environments 存储环境变量，直接使用 pod 中的定义方式
-                items:
-                  type: string
-                type: array
               expose:
                 description: Expose service 要暴露的端口
                 properties:
@@ -179,6 +179,9 @@ spec:
                     description: ServicePort service 的端口，一般是随机生成，这里为了防止冲突，使用和提供服务相同的端口
                     format: int32
                     type: integer
+                  tls:
+                    description: Tls 是否开启https
+                    type: boolean
                 required:
                 - mode
                 type: object
@@ -195,7 +198,9 @@ spec:
                 type: integer
               startCmd:
                 description: StartCmd 存储启动命令
-                type: string
+                items:
+                  type: string
+                type: array
             required:
             - expose
             - image
