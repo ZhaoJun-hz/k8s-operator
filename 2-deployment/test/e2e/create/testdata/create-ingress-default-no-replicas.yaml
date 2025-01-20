@@ -7,4 +7,4 @@ spec:
   port: 80
   expose:
     mode: ingress
-    ingressDomain: www.shudong-test.com
+    ingressDomain: www.shudong-test-a.com

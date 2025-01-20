@@ -179,14 +179,14 @@ func NewService(myDeployment *myApiV1.MyDeployment) coreV1.Service {
 	svc.Spec.Selector = newLabels(myDeployment)
 
 	servicePort := newServicePort(myDeployment)
-	svc.Spec.Ports = []coreV1.ServicePort{servicePort}
 
 	switch myDeployment.Spec.Expose.Mode {
 	case myApiV1.ModeIngress:
-
+		svc.Spec.Ports = []coreV1.ServicePort{servicePort}
 	case myApiV1.ModeNodePort:
 		svc.Spec.Type = coreV1.ServiceTypeNodePort
 		servicePort.NodePort = myDeployment.Spec.Expose.NodePort
+		svc.Spec.Ports = []coreV1.ServicePort{servicePort}
 	default:
 		return coreV1.Service{}
 	}

@@ -52,15 +52,15 @@ func CreateIngressMyDeployment(ctx *framework.TestContext, f *framework.Framewor
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 		ginkgo.It("should be exist deployment", func() {
-			_, err := clientSet.AppsV1().Deployments("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.AppsV1().Deployments("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 		ginkgo.It("should be exist service", func() {
-			_, err := clientSet.CoreV1().Services("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.CoreV1().Services("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 		ginkgo.It("should be exist ingress", func() {
-			_, err := clientSet.NetworkingV1().Ingresses("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 	})
@@ -77,15 +77,15 @@ func CreateIngressMyDeployment(ctx *framework.TestContext, f *framework.Framewor
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist deployment", func() {
-			_, err := clientSet.AppsV1().Deployments("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.AppsV1().Deployments("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist service", func() {
-			_, err := clientSet.CoreV1().Services("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.CoreV1().Services("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist ingress", func() {
-			_, err := clientSet.NetworkingV1().Ingresses("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 	})
@@ -212,7 +212,7 @@ func CreateIngressMyDeploymentMustFailed(ctx *framework.TestContext, f *framewor
 func CreateIngressMyDeploymentWithTls(ctx *framework.TestContext, f *framework.Framework) {
 	var (
 		// 1. 准备测试数据
-		crFilePath    = "create/testdata/create-ingress-with-tls"
+		crFilePath    = "create/testdata/create-ingress-with-tls.yaml"
 		obj           = &unstructured.Unstructured{Object: make(map[string]interface{})}
 		dynamicClient dynamic.Interface
 		clientSet     *kubernetes.Clientset
@@ -258,16 +258,16 @@ func CreateIngressMyDeploymentWithTls(ctx *framework.TestContext, f *framework.F
 		})
 
 		ginkgo.It("should be exist ingress, and have a tls setting", func() {
-			ingress, err := clientSet.NetworkingV1().Ingresses("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			ingress, err := clientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 			gomega.Expect(len(ingress.Spec.TLS)).Should(gomega.Equal(1))
 		})
 		ginkgo.It("should be exist issuer", func() {
-			_, err = dynamicClient.Resource(issuerGVR).Namespace("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err = dynamicClient.Resource(issuerGVR).Namespace("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 		ginkgo.It("should be exist certificate", func() {
-			_, err = dynamicClient.Resource(certificateGVR).Namespace("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err = dynamicClient.Resource(certificateGVR).Namespace("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 	})
@@ -284,15 +284,15 @@ func CreateIngressMyDeploymentWithTls(ctx *framework.TestContext, f *framework.F
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist ingress", func() {
-			_, err := clientSet.NetworkingV1().Ingresses("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist issuer", func() {
-			_, err = dynamicClient.Resource(issuerGVR).Namespace("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err = dynamicClient.Resource(issuerGVR).Namespace("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist certificate", func() {
-			_, err = dynamicClient.Resource(certificateGVR).Namespace("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err = dynamicClient.Resource(certificateGVR).Namespace("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 	})

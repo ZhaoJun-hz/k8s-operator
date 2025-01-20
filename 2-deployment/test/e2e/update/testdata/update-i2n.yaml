@@ -8,4 +8,4 @@ spec:
   replicas: 2
   expose:
     mode: nodePort
-    nodePort: 30001
+    nodePort: 30002

@@ -55,15 +55,15 @@ func UpdateI2NMyDeployment(ctx *framework.TestContext, f *framework.Framework) {
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 		ginkgo.It("should be exist deployment", func() {
-			_, err := clientSet.AppsV1().Deployments("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.AppsV1().Deployments("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 		ginkgo.It("should be exist service", func() {
-			_, err := clientSet.CoreV1().Services("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.CoreV1().Services("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 		ginkgo.It("should be exist ingress", func() {
-			_, err := clientSet.NetworkingV1().Ingresses("deployment-system").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 		})
 
@@ -75,10 +75,10 @@ func UpdateI2NMyDeployment(ctx *framework.TestContext, f *framework.Framework) {
 			_, err = dynamicClient.Resource(myGVR).Namespace("default").Update(context.TODO(), updateObj, metav1.UpdateOptions{})
 			gomega.Expect(err).Should(gomega.BeNil())
 			ginkgo.By("sleep 10 second wait deleting done")
-			time.Sleep(10 * time.Second)
+			time.Sleep(20 * time.Second)
 		})
 		ginkgo.It("should not be exist ingress", func() {
-			_, err := clientSet.NetworkingV1().Ingresses("deployment-system").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 	})
@@ -95,15 +95,15 @@ func UpdateI2NMyDeployment(ctx *framework.TestContext, f *framework.Framework) {
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist deployment", func() {
-			_, err := clientSet.AppsV1().Deployments("deployment-system").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.AppsV1().Deployments("default").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist service", func() {
-			_, err := clientSet.CoreV1().Services("deployment-system").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.CoreV1().Services("default").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 		ginkgo.It("should not be exist ingress", func() {
-			_, err := clientSet.NetworkingV1().Ingresses("deployment-system").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
+			_, err := clientSet.NetworkingV1().Ingresses("default").Get(context.TODO(), updateObj.GetName(), metav1.GetOptions{})
 			gomega.Expect(err).ShouldNot(gomega.BeNil())
 		})
 	})
